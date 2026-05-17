@@ -1,0 +1,23 @@
+{
+  "name": "oh-story-deepseek",
+  "version": "1.0.0",
+  "description": "网文写作全流程 skill，适配 OpenClaw + DeepSeek",
+  "trigger": [
+    "/story-setup",
+    "/story",
+    "/story-long-write",
+    "/story-long-analyze",
+    "/story-long-scan",
+    "/story-short-write",
+    "/story-short-analyze",
+    "/story-short-scan",
+    "/story-deslop",
+    "/story-import",
+    "/story-review"
+  ],
+  "agents": ["skills/agents/story.md"],
+  "rules": ["skills/rules/common.md"],
+  "hooks": {
+    "/story-setup": "skills/hooks/setup.md"
+  }
+}
