@@ -17,7 +17,11 @@ if [ ! -d "$SKILLS_DIR" ]; then
 fi
 
 # Known intentional differences (basename): these files are expected to differ
-IGNORE_NAMES="output-templates.md"
+# - output-templates.md: each skill owns output schemas
+# - material-decomposition.md: long/short analyze use different decomposition pipelines
+# - quality-checklist.md: story-short-analyze's copy points to material-decomposition.md
+#   (absent in story-short-write); the two copies are intentionally skill-specific
+IGNORE_NAMES="output-templates.md material-decomposition.md quality-checklist.md"
 
 mismatches=0
 checked=0

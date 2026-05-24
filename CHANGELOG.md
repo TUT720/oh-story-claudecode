@@ -2,6 +2,108 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.6.8
+
+> story-import 重构 + skill 自包含化 + 起点扫榜与 story-review 子 Agent 修复
+
+### 改进
+
+- **story-import（导入已有小说）**：按篇幅自动分流。长篇走 story-long-analyze 6 阶段管线 + 长篇结构迁移；短篇走 story-short-analyze + 短篇结构迁移（单文件 `正文.md`，不产 `追踪/`、`大纲/` 等长篇专属目录）。判定优先级：用户声明 > 章节结构 > 字数兜底 30000。
+- **story-import**：长篇新增「角色状态反推」7 步算法，从拆书产物反推 `追踪/角色状态.md`，不重读原文。补齐 story-long-write 日更准备层依赖的角色状态文件，避免导入书永久走兜底分支。
+- **story-import**：调用 story-long-analyze 时自动越过 Stage 1 停靠点，以「完整拆解、一次跑完、不要停下询问」模式驱动，确保 Stage 2-5 全套产物落地；停靠询问不透传给用户。
+- **story-import**：skill 自包含化。原先跨 skill 引用 story-long-write / story-short-write 的 references（22+ 处 `../` 路径）全部清除——迁移所需模板（关系/题材定位/卷纲/角色状态）内联到 story-import 自己的 reference 文件，叶子引用文件（state-tracking.md、format-and-structure.md）以本地副本管理。
+
+### Bug 修复
+
+- 修复 story-review 子 Agent 读取 `quality-checklist.md` 等参考文件时按当前目录解析导致找不到的问题：story-review prompt 与 story-setup Agent 模板统一使用本 skill 内复制的 references 规范路径，并将 `agents_version` 升级到 v8 以提示既有项目重新部署。
+- 修复起点中文网扫榜在 PC 站触发风控页时无法采集的问题：`qidian-rank-scraper.js` 默认改为移动端 SSR pageContext 抓取，并保留 CAPTCHA/CDP 回退。
+
+### 验证
+
+- story-import 篇幅分流、角色状态反推、跨 skill 引用清零均经独立验证；`scripts/static-check.sh` 13/13 PASS，`scripts/check-shared-files.sh` 0 mismatches。
+- story-review / story-setup Agent 模板路径审计通过。
+- 起点畅销榜实时采集成功并生成 Markdown。
+- `node --check skills/story-long-scan/scripts/qidian-rank-scraper.js`
+- GitHub CI：macOS / Windows / static-check 全绿。
+
+## v0.6.7
+
+> 拆书 skill 重构：长篇双模式合并 + 短篇去模式化
+
+### 改进
+
+- **story-long-analyze（长篇拆书）**：「快速 / 深度」双模式合并为单一拆解管道。「快速」不再是独立模式，而是管道跑完黄金三章（Stage 1）后的可停靠交付点——产出 `快速预览.md` 并询问是否继续全量拆解。确认后从 Stage 2 续跑，不重跑已完成阶段；`快速预览.md` 与终态 `拆文报告.md` 字段向上兼容。
+- **story-long-analyze**：文档单一事实源。质量阈值、分块策略统一归 `material-decomposition.md`；运维内容（`_progress.md` 模板、错误处理、恢复机制）拆出为独立的 `pipeline-ops.md`。
+- **story-short-analyze（短篇拆书）**：砍掉「标准 / 精细」双档，统一为单一全量拆解。双档在实操中无人遵守，连示范 demo 都没按标准模式产出。
+- **story-short-analyze**：质量阈值收敛到唯一权威文件；管道阶段术语 `Phase 2-6` 对齐为 `Stage 2-6`，与长篇 Stage 体系一致；新增原文备份前置步骤。
+- 黄金三章深度拆解产物由单文件拆为三个单章文件 `第N章_深度拆解.md`。
+- 同步更新下游 skill：story-long-write、story-import、chapter-extractor agent 模板的拆书术语与文件名引用。
+
+### Bug 修复
+
+- 修复 `story-short-write` 指向「自检模式 / 拆文模式」的悬空引用——这两个入口在 story-short-analyze 中并不存在。
+- 修复短篇拆书情节节点密度在三处文件给出不一致数值的问题，统一到唯一权威的字数分档表。
+
+### 验证
+
+- 长篇、短篇拆书各经独立验收，发现的问题已修复。
+- 长篇新管道用《盘龙》开篇 23 章端到端实跑，Stage 1 停靠点、断点续跑、字段向上兼容均跑通。
+- 全仓旧模式术语（快速模式 / 深度模式 / 标准模式 / 精细模式 / 自检模式）零残留。
+- GitHub CI：macOS / Windows / static-check 全绿。
+
+## v0.6.6
+
+> 日更续写稳定性 + 伏笔 hook 降噪
+
+### Bug 修复
+
+- 修复长篇 `/story-long-write 日更` 在多次会话后，同一批次内用户回复“继续”可能跳出 `workflow-daily.md`、直接进入正文续写的问题。
+- 修复日更流程偶发绕过真实项目文件、依赖聊天记忆写作的问题：每章开始前必须确认读取本轮 workflow 内的细纲、上一章正文、上下文、伏笔、时间线和角色状态/设定。
+- 修复 SessionStart hook 把正常开放伏笔（`未埋` / `已埋`）当成问题提示，进而诱发全量伏笔审计和 token 膨胀的问题。
+- 修复 `workflow-daily.md` 中裸 `SKILL.md` section 描述被本地 static-check 误判为断裂 section 引用的问题。
+
+### 改进
+
+- **story-long-write**：日更批量写作中，“继续 / 续写 / 日更”统一解释为继续当前 daily workflow，不重新进入场景选择，也不跳过状态筛选和意图确认。
+- **workflow-daily**：正常批量执行时不再逐章询问“是否继续”；仅在细纲缺失、章节号冲突、请求范围超过已有细纲、用户要求改大纲/追踪等真实阻塞时暂停确认。
+- **伏笔处理**：日更流程只处理本轮新增、推进、回收的增量伏笔；全量伏笔审计只由 `/story-review` 或用户明确要求触发。
+- **story-setup**：`agents_version` 升级到 v7，既有项目重新运行 `/story-setup` 后可获得新版 hook/agent/rule。
+- **CI/脚本**：`check-hook-regex-sync.sh` 从静态正则覆盖检查升级为行为级 fixture 校验，验证正常开放状态不报警、`已过期` 和异常状态报警。
+
+### 验证
+
+- `git diff --check`
+- `bash scripts/check-hook-regex-sync.sh`
+- `bash scripts/check-shared-files.sh`
+- `bash scripts/static-check.sh`
+- GitHub CI：macOS / Windows / static-check 全绿
+- tmux + Claude Code 场景实测：构造 42 章长篇项目，执行 `/story-long-write 日更` 写第43章，再回复“继续”写第44章；两轮均保持在 daily workflow，读取必需上下文/伏笔/时间线/角色状态，未触发全量伏笔审计。
+
+## v0.6.5
+
+> 写作去 AI 味密度修复 + 对标路径说明统一
+
+### Bug 修复
+
+- 修复 Claude/Opus 4.7 下旧“三层展开”提示容易诱导的叠加式描写：同一动作/情绪不再按发生、感知、反应拆成多段重复描写
+- 修复三维度织入后一段到底的问题：新增镜头断段、手机阅读密度和输出前密度重排规则
+- 修复 Windows + DeepSeek/Claude Code 组合中字数统计偏差：优先使用 Python 字符统计，`wc -m` 仅作 macOS/Linux 备选，禁止模型估算和 `wc -c` 字节数
+
+### 改进
+
+- **story-short-write / story-long-write**：正文写作改为“三维度织入”，并明确按新动作/新物件/新信息/新对话断段
+- **story-deslop**：将“重复描写去重”纳入 Gate C/D，不再用专项门禁堆叠规则
+- **story-long-write / chapter-extractor / story-long-analyze**：长篇情节点密度统一为 150-200 字/个情节点，每章下限 10 个、上限 40 个
+- **story-setup**：agents_version 升级到 v5，narrative-writer 模板同步新版场景写法、段落密度和跨平台字数统计规则
+- **story-short-write**：统一短篇 `对标/` 与 `拆文库/` 路径说明：项目根 `拆文库/` 为原始产出，短篇目录 `对标/` 为当前作品引用视图
+
+### 验证
+
+- `git diff --check`
+- `bash scripts/static-check.sh`
+- `bash scripts/check-hook-regex-sync.sh`
+- tmux + Claude Code 场景实测：对比旧三层、三维度织入、镜头断段和密度重排后的段落/句长指标
+
 ## v0.6.4
 
 > 产线思路统一 — 核心思路集成 + 文件系统 + 准备层

@@ -1,4 +1,4 @@
-<!-- Last synced with README.md: 2026-05-13 -->
+<!-- Last synced with README.md: 2026-05-23 -->
 
 **English** | [中文](README.md)
 
@@ -113,9 +113,9 @@ Natural language also triggers: `帮我开书` ("help me start writing") → `st
 </details>
 
 <details>
-<summary>Deconstruction demo — Coiling Dragon (deep analysis output)</summary>
+<summary>Deconstruction demo — Coiling Dragon</summary>
 
-Full output from `/story-long-analyze` deep mode on the first 23 chapters of *Coiling Dragon* (original text excluded):
+Full output from `/story-long-analyze` deep mode on the first 23 chapters of *Coiling Dragon*:
 
 ```
 demo/拆文库-盘龙/
@@ -155,6 +155,16 @@ Writing skills internally coordinate 7 specialized agents:
 | **chapter-extractor** | Haiku | Chapter extraction — summaries, plot points, character mentions, parallel deconstruction unit |
 
 Agents load writing theory from `references/` on demand (character design, dialogue techniques, twist toolbox, etc. — 100+ methodology files), without reserving context window space.
+
+## Upgrading to v0.6.8
+
+If you have already run `/story-setup` inside a writing project, run `/story-setup` again from the project root after updating this skill pack (`agents_version` is bumped to v8 to trigger reviewer template redeploy).
+
+- **story-import (import existing novels)**: automatic length routing — long-form runs the full deconstruction pipeline plus long-form project migration, short-form runs the short-form pipeline plus a single-file `正文.md` project. Priority: user declaration > chapter structure > word-count fallback.
+- **story-import**: long-form imports now reverse-engineer `追踪/角色状态.md` so the daily-writing preparation layer no longer falls back to inference when this file is missing.
+- **story-import**: when invoking the deconstruction skill it automatically skips the Stage 1 checkpoint so the "after-golden-three-chapters stop and ask" interaction is not surfaced to import users.
+- **story-review subagent path fix**: reviewers no longer look up bare names like `quality-checklist.md` against the user project's cwd; references are loaded via the owning skill's canonical path.
+- **Qidian scanner fix**: default to mobile SSR scraping with CDP + CAPTCHA fallback, avoiding the PC-site anti-bot block.
 
 ## Automation Hooks
 
